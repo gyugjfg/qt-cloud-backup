@@ -66,7 +66,7 @@ g++ -std=c++17 -O2 -pthread server/server.cpp -o backup_server
 
 ## 演示素材
 
-截图命名、脱敏要求和两个录屏脚本见 [`docs/media/README.md`](docs/media/README.md)。公开仓库只放源码、测试、必要资源和文档；个人路径、运行数据库、密码、密钥和构建产物不应上传。
+截图命名、脱敏要求和综合录屏脚本见 [`docs/media/README.md`](docs/media/README.md)。公开仓库只放源码、测试、必要资源和文档；个人路径、运行数据库、密码、密钥和构建产物不应上传。
 
 ## 归属与限制
 
