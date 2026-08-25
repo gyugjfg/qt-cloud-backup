@@ -15,7 +15,7 @@
 | 当前合并切片构建 | Qt 6.8.3 MinGW、`build/final-verify` | 通过（含 `uic`/`moc`/Release 链接） |
 | 传输边界与中文注释切片构建 | Qt 6.8.3 MinGW、`build/comment-boundary-verify` | 通过（`TransferService.cpp` 不再依赖 `TaskManager.h`） |
 | 传输共享契约 QtTest | Qt 6.8.3 MinGW、`build/transfer-contract-test/release/transfer_contract_test.exe` | 通过，退出码 0 |
-| Linux 服务端协议 smoke | WSL Ubuntu-D、`g++ -std=c++17 -O2 -Wall -Wextra -pthread server.cpp` + `tests/server_protocol_smoke.py` | 通过；110843 字节上传/下载 SHA-256 一致，目录列表和路径穿越拒绝通过 |
+| Linux 服务端协议 smoke | WSL Ubuntu-D、`g++ -std=c++17 -O2 -Wall -Wextra -pthread server/server.cpp` + `tests/server_protocol_smoke.py` | 通过；110843 字节上传/下载 SHA-256 一致，目录列表和路径穿越拒绝通过 |
 | TaskManager 状态迁移与 fake Gateway QtTest | Qt 6.8.3 MinGW、`build/task-manager-state-test/release/task_manager_state_test.exe` | 通过，6 passed、0 failed；覆盖空 Gateway、状态边界和请求/控制映射 |
 | TaskTransferGateway 可替换端口客户端构建 | Qt 6.8.3 MinGW、`build/gateway-fake-verify` | 通过，含 uic/moc/rcc、Release 链接和启动冒烟 |
 | 目录选择异步生命周期守卫构建 | Qt 6.8.3 MinGW、`build/directory-lifetime-verify` | 通过，Release 链接和启动冒烟；未改 `.ui`/资源 |
