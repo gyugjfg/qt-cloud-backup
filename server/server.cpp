@@ -21,6 +21,8 @@ namespace fs = std::filesystem;
 const int PORT = 10000;
 const int BUFFER_SIZE = 1048576; // 1MB，与客户端一致
 fs::path SERVER_ROOT;
+fs::path WRITE_ROOT;
+bool READ_ONLY_MODE = false;
 
 // ==================== 工具函数 ====================
 
@@ -87,6 +89,23 @@ bool safeRecvLine(int sock, string &line, size_t maxLength = 64 * 1024) {
     return false;
 }
 
+bool isPathWithin(const fs::path &candidate, const fs::path &root) {
+    auto candidateIt = candidate.begin();
+    auto rootIt = root.begin();
+    for (; rootIt != root.end(); ++rootIt, ++candidateIt) {
+        if (candidateIt == candidate.end() || *candidateIt != *rootIt) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool canonicalizePath(const fs::path &input, fs::path &output) {
+    std::error_code pathError;
+    output = fs::weakly_canonical(input, pathError);
+    return !pathError && output.is_absolute();
+}
+
 bool resolveServerPath(const string &requestedPath, fs::path &resolvedPath) {
     fs::path relativePath = requestedPath.empty() ? fs::path(".") : fs::path(requestedPath);
     // 客户端把 `/` 当作远程虚拟根目录；这里只去掉虚拟根前缀，
@@ -96,13 +115,24 @@ bool resolveServerPath(const string &requestedPath, fs::path &resolvedPath) {
     }
 
     const fs::path candidate = (SERVER_ROOT / relativePath).lexically_normal();
-    const fs::path relativeToRoot = candidate.lexically_relative(SERVER_ROOT);
-    const string relativeText = relativeToRoot.string();
-    if (relativeText == ".." || relativeText.rfind("../", 0) == 0) {
+    fs::path canonicalCandidate;
+    if (!canonicalizePath(candidate, canonicalCandidate) ||
+        !isPathWithin(canonicalCandidate, SERVER_ROOT)) {
         return false;
     }
 
-    resolvedPath = candidate;
+    resolvedPath = canonicalCandidate;
+    return true;
+}
+
+bool resolveWritableServerPath(const string &requestedPath, fs::path &resolvedPath) {
+    if (READ_ONLY_MODE) {
+        return false;
+    }
+    if (!resolveServerPath(requestedPath, resolvedPath) ||
+        !isPathWithin(resolvedPath, WRITE_ROOT)) {
+        return false;
+    }
     return true;
 }
 
@@ -138,7 +168,7 @@ void handleFileList(int clientSocket, const string &path) {
     }
     if ((dir = opendir(dirPath.c_str())) != NULL) {
         while ((ent = readdir(dir)) != NULL) {
-            if (strcmp(ent->d_name, ".") != 0) {
+            if (strcmp(ent->d_name, ".") != 0 && strcmp(ent->d_name, "..") != 0) {
                 fileList += ent->d_name;
                 fileList += "|";
 
@@ -185,7 +215,10 @@ bool safeCreateDirectory(const string& basePath, const string& fileName) {
     fs::path allowedPath = fs::weakly_canonical(basePath);
     
     // 安全检查：确保路径在允许范围内，防止路径穿越攻击
-    if (fullPath.string().find(allowedPath.string()) != 0) {
+    fs::path canonicalFullPath;
+    if (!canonicalizePath(fullPath, canonicalFullPath) ||
+        !isPathWithin(canonicalFullPath, allowedPath) ||
+        !isPathWithin(canonicalFullPath, WRITE_ROOT)) {
         cerr << "安全警告: 非法路径穿越尝试: " << fileName << endl;
         return false;
     }
@@ -485,6 +518,11 @@ void handleClient(int clientSocket) {
         }
         handleFileList(clientSocket, resolvedPath.string());
     } else if (cmd == "fileput") {
+        if (READ_ONLY_MODE) {
+            safeSend(clientSocket, "ERROR: 服务端处于只读浏览模式\n");
+            close(clientSocket);
+            return;
+        }
         // fileput|serverPath|fileName|fileSize|startOffset
         if (parts.size() != 5) {
             cerr << "fileput命令格式错误" << endl;
@@ -497,8 +535,8 @@ void handleClient(int clientSocket) {
         string fileName = parts[2];
         fs::path resolvedServerPath;
         fs::path resolvedFilePath;
-        if (!resolveServerPath(serverPath, resolvedServerPath) ||
-            !resolveServerPath((fs::path(serverPath) / fileName).string(), resolvedFilePath)) {
+        if (!resolveWritableServerPath(serverPath, resolvedServerPath) ||
+            !resolveWritableServerPath((fs::path(serverPath) / fileName).string(), resolvedFilePath)) {
             string response = "ERROR: 路径不安全\n";
             safeSend(clientSocket, response);
             close(clientSocket);
@@ -550,6 +588,11 @@ void handleClient(int clientSocket) {
             handleFileSave(clientSocket, resolvedFilePath.string(), startPos, endPos, false);
         }
     } else if (cmd == "createdir") {
+        if (READ_ONLY_MODE) {
+            safeSend(clientSocket, "ERROR: 服务端处于只读浏览模式\n");
+            close(clientSocket);
+            return;
+        }
         // createdir|dirName
         if (parts.size() != 2) {
             cerr << "createdir命令格式错误" << endl;
@@ -560,7 +603,7 @@ void handleClient(int clientSocket) {
         }
         string dirName = parts[1];
         fs::path resolvedDirPath;
-        if (!resolveServerPath(dirName, resolvedDirPath)) {
+        if (!resolveWritableServerPath(dirName, resolvedDirPath)) {
             string response = "ERROR: 路径不安全\n";
             safeSend(clientSocket, response);
             close(clientSocket);
@@ -568,6 +611,11 @@ void handleClient(int clientSocket) {
         }
         handleCreateDir(clientSocket, resolvedDirPath.string());
     } else if (cmd == "deletefile") {
+        if (READ_ONLY_MODE) {
+            safeSend(clientSocket, "ERROR: 服务端处于只读浏览模式\n");
+            close(clientSocket);
+            return;
+        }
         // deletefile|fileName
         if (parts.size() != 2) {
             cerr << "deletefile命令格式错误" << endl;
@@ -578,7 +626,7 @@ void handleClient(int clientSocket) {
         }
         string fileName = parts[1];
         fs::path resolvedDeletePath;
-        if (!resolveServerPath(fileName, resolvedDeletePath)) {
+        if (!resolveWritableServerPath(fileName, resolvedDeletePath)) {
             string response = "ERROR: 路径不安全\n";
             safeSend(clientSocket, response);
             close(clientSocket);
@@ -601,14 +649,56 @@ int main(int argc, char *argv[]) {
     // 必须忽略 SIGPIPE 信号，防止写入已断开的连接时进程被杀死
     signal(SIGPIPE, SIG_IGN);
 
-    const fs::path requestedRoot = argc > 1 ? fs::path(argv[1]) : fs::current_path();
+    fs::path requestedRoot = fs::current_path();
+    fs::path requestedWriteRoot;
+    bool writeRootProvided = false;
+    bool positionalRootProvided = false;
+    for (int index = 1; index < argc; ++index) {
+        const string argument = argv[index];
+        if (argument == "--read-only") {
+            READ_ONLY_MODE = true;
+        } else if (argument == "--root" && index + 1 < argc) {
+            requestedRoot = argv[++index];
+        } else if (argument == "--write-root" && index + 1 < argc) {
+            requestedWriteRoot = argv[++index];
+            writeRootProvided = true;
+        } else if (argument.rfind("--", 0) == 0) {
+            cerr << "未知参数: " << argument << endl;
+            cerr << "用法: backup_server [root] [--root <path>] [--read-only] [--write-root <path>]" << endl;
+            return 1;
+        } else if (!positionalRootProvided) {
+            // 保留旧版的第一个位置参数：backup_server <root>
+            requestedRoot = argument;
+            positionalRootProvided = true;
+        } else {
+            cerr << "多余的位置参数: " << argument << endl;
+            return 1;
+        }
+    }
     std::error_code rootError;
     SERVER_ROOT = fs::weakly_canonical(requestedRoot, rootError);
     if (rootError || !fs::exists(SERVER_ROOT) || !fs::is_directory(SERVER_ROOT)) {
         cerr << "服务端根目录无效: " << requestedRoot << endl;
         return 1;
     }
+    if (READ_ONLY_MODE && writeRootProvided) {
+        cerr << "只读模式不能同时指定可写目录" << endl;
+        return 1;
+    }
+    if (writeRootProvided) {
+        std::error_code writeRootError;
+        WRITE_ROOT = fs::weakly_canonical(requestedWriteRoot, writeRootError);
+        if (writeRootError || !fs::exists(WRITE_ROOT) || !fs::is_directory(WRITE_ROOT) ||
+            !isPathWithin(WRITE_ROOT, SERVER_ROOT)) {
+            cerr << "可写目录无效或不在服务端根目录内: " << requestedWriteRoot << endl;
+            return 1;
+        }
+    } else {
+        WRITE_ROOT = SERVER_ROOT;
+    }
     cout << "服务端文件根目录: " << SERVER_ROOT << endl;
+    cout << "服务端模式: " << (READ_ONLY_MODE ? "只读浏览/下载" : "可写") << endl;
+    cout << "服务端可写目录: " << (READ_ONLY_MODE ? "(无)" : WRITE_ROOT.string()) << endl;
 
     int serverSocket = -1;
     int port = PORT;

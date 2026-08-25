@@ -12,7 +12,7 @@
              -> 暂停/恢复/取消 -> 完成或失败反馈
 ```
 
-客户端负责 UI、节点数据和任务展示；Linux 服务端负责受控存储根目录下的目录读取、上传、下载和偏移续传。服务端不包含账号系统、TLS 或公网部署能力，只适合本机、WSL 或明确受控网络演示。
+客户端负责 UI、节点数据和任务展示；Linux 服务端负责启动根目录下的目录读取、上传、下载和偏移续传，并支持把 `/` 作为只读浏览根。服务端不包含账号系统、TLS 或公网部署能力，只适合本机、WSL 或明确受控网络演示。
 
 ## 工程结构
 
@@ -35,7 +35,7 @@
 - **任务状态集中管理**：`TaskManager` 维护 `Waiting -> Running -> Paused -> Completed/Failed/Canceled` 状态和进度快照。
 - **异步传输**：`TransferService` 使用队列和 `QThreadPool` 执行 Socket 传输，进度、状态和错误通过信号回到 Qt UI。
 - **偏移续传**：上传和下载请求包含起始偏移；服务端在受控根目录内根据已有文件长度协商续传位置。
-- **路径边界**：服务端对命令长度、参数解析和根目录逃逸做拒绝处理；协议 Smoke 覆盖 `../` 样例。
+- **路径边界**：服务端对命令长度、参数解析、符号链接逃逸和根目录逃逸做拒绝处理；全局浏览可以只读启动，可写模式通过 `--write-root` 限定。
 - **SQLite 节点数据**：客户端启动时加载节点，新增、修改和删除同步到 `nodes` 表。任务历史和完整重启恢复尚未形成闭环，不能据此宣传为已完成能力。
 
 ## Windows 客户端构建
@@ -55,8 +55,10 @@ mingw32-make -j4
 
 ```bash
 g++ -std=c++17 -O2 -pthread server/server.cpp -o backup_server
-./backup_server /tmp/cloud-backup-root
+./backup_server --root /tmp/cloud-backup-root
 ```
+
+需要浏览 Linux/WSL 的整棵目录树时使用 `./backup_server --root / --read-only`；需要上传演示时，用 `--write-root` 指向专用可写目录。不要把可写根设为 `/`。
 
 默认从 `10000` 端口开始监听；端口占用时按实现向后尝试。WSL 与 Windows 客户端联调时，使用 WSL 可达地址，并把存储根目录限定为专用演示目录。
 
