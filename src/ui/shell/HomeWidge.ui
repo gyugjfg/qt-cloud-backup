@@ -1347,7 +1347,7 @@
                  </size>
                 </property>
                 <property name="text">
-                 <string>新建文件夹</string>
+                  <string>新建下载任务</string>
                 </property>
                </widget>
               </item>
