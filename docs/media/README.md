@@ -8,9 +8,9 @@
 | --- | --- | --- |
 | `01-client-home.png` | 客户端主页/任务工作台 | 节点入口、上传/下载入口、任务列表区域 |
 | `02-node-management.png` | 节点管理页 | 节点名称、地址、端口、在线状态；使用示例值 |
-| `03-remote-directory.png` | 远程目录浏览 | 服务端目录、`demo-remote.txt` 与 `resume-demo-1.5GB.bin`、返回/进入目录和选择状态 |
+| `03-remote-directory.png` | 远程目录浏览 | 服务端目录、`demo-remote.txt` 与 `resume-demo-2GB.bin`、返回/进入目录和选择状态 |
 | `04-upload-task.png` | 上传任务运行中 | 文件名、进度、速度、暂停/取消按钮和状态 |
-| `05-download-resume.png` | 下载任务暂停/恢复或断点 | 选择 `resume-demo-1.5GB.bin`，展示暂停前后进度、恢复后的继续传输和最终状态 |
+| `05-download-resume.png` | 下载任务暂停/恢复或断点 | 选择 `resume-demo-2GB.bin`，展示暂停前后进度、恢复后的继续传输和最终状态 |
 | `06-linux-server.png` | WSL/Linux 服务端终端 | 编译/启动命令、监听端口、服务端收到的协议日志 |
 
 截图建议 1600x1000 或 1920x1080，PNG/JPEG 单张控制在 2 MB 左右。不要使用包含浏览器标签、桌面全屏、真实路径或个人通知的截图。
