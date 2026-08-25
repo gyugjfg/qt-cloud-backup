@@ -1,0 +1,27 @@
+# Qt用户配置
+*.user
+*.pro.user*
+
+# Qt编译缓存
+*.stash
+.qmake.stash
+
+# 编译输出目录
+build/
+debug/
+release/
+
+# Qt生成文件
+moc_*
+ui_*
+qrc_*
+Makefile*
+
+# 临时文件
+*.log
+*.tmp
+
+# 本地数据库和用户数据
+*.db
+*.sqlite
+*.sqlite3

@@ -1,0 +1,16 @@
+<!DOCTYPE RCC>
+<RCC version="1.0">
+    <qresource>
+        <file>upload.png</file>
+        <file>download.png</file>
+        <file>tasklist.png</file>
+        <file>nodelist.png</file>
+        <file>close.png</file>
+        <file>mini.png</file>
+        <file>combo-chevron-down.svg</file>
+        <file>checkmark.svg</file>
+        <file>play.svg</file>
+        <file>pause.svg</file>
+        <file>styles/theme.qss</file>
+    </qresource>
+</RCC>
